@@ -1,0 +1,369 @@
+class_name Variants
+extends RefCounted
+## Catalog of every variant in the game.
+## `playable` variants have a generator + board renderer; the rest show as "Coming soon".
+
+const CORE := ["classic", "killer", "thermo", "arrow", "jigsaw", "diagonal", "kropki", "xv",
+	"non_consecutive", "king", "knight", "even_odd", "german_whispers", "renban",
+	"sandwich", "skyscraper", "little_killer", "palindrome", "between", "consecutive", "greater_than",
+	"dutch_whispers", "slow_thermo", "quadruple", "universal", "windoku", "xsum", "zipper",
+	"lockout", "twisted", "bishop", "ascending", "axia", "couples", "dutch_flatmates", "friendly",
+	"index", "pulse", "reflection", "running", "slingshot", "vertex",
+	"region_sum", "entropic", "modular", "parity_lines", "nabner", "ten_lines", "double_arrow", "pill_arrow", "fortress", "min_max",
+	"clone", "frame", "numbered_rooms", "rossini", "battlefield", "sum_product_dots", "anti_diagonal", "center_dot", "asterisk", "girandola",
+	"argyle", "queen", "miracle", "magic_square", "toroidal",
+	"ratio_dots", "difference_dots", "product_lines", "difference_lines", "ratio_lines", "prime_composite", "parity_regions", "missing_digit",
+	"forbidden_digit", "divisibility", "kenken", "alphabet", "wordoku", "symbol", "color", "roman",
+	"mini_classic", "mini_killer", "mini_thermo", "mini_arrow", "mini_jigsaw", "mini_diagonal", "mini_kropki", "mini_xv", "mini_even_odd", "mini_renban", "mini_sandwich", "mini_skyscraper", "mini_xsum", "mini_little_killer", "mini_palindrome", "mini_between", "mini_consecutive", "mini_greater_than", "mini_non_consecutive", "mini_king", "mini_knight", "mini_region_sum", "mini_entropic", "mini_parity_lines", "mini_zipper", "mini_slow_thermo", "mini_kenken", "mini_difference_dots", "mini_ratio_dots", "mini_sum_product_dots"]
+
+## Mini (6x6) versions: "mini_<rule>" plays <rule> on a 6x6 grid with 2x3 boxes and digits 1-6.
+## Their catalog entries are made from the 9x9 entry (get_info).
+const MINI := ["classic", "killer", "thermo", "arrow", "jigsaw", "diagonal", "kropki", "xv", "even_odd", "renban", "sandwich", "skyscraper", "xsum", "little_killer", "palindrome", "between", "consecutive", "greater_than", "non_consecutive", "king", "knight", "region_sum", "entropic", "parity_lines", "zipper", "slow_thermo", "kenken", "difference_dots", "ratio_dots", "sum_product_dots"]
+
+const LIST := [
+	{"id": "classic", "name": "Classic Sudoku", "short": "Each row, column, and 3x3 box must have all the digits 1 to 9 only once.",
+		"rules": "Fill the grid so that every row, every column and every 3x3 box contains the digits 1 to 9 exactly once.",
+		"tip": "Scan each box for digits that can only go in one place, then look for rows and columns where a digit is pinned to a single box."},
+	{"id": "arrow", "name": "Arrow", "short": "Digits along the Arrow must sum to the number in the circle at the base of the arrow.",
+		"rules": "Normal Sudoku rules apply. Digits along an arrow must sum to the digit in the circle at its base. Digits may repeat along an arrow if Sudoku rules allow.",
+		"tip": "A circle can never be 1 or 2 on a two-cell arrow. Long arrows force small digits and big circles."},
+	{"id": "ascending", "name": "Ascending Sequences", "short": "A row should contain the same number of ascending digit sequences as the number to its left.",
+		"rules": "Normal Sudoku rules apply. A number left of a row (or above a column) tells how many ascending sequences that row (column) contains, read left to right (top to bottom). An ascending sequence is a run of two or more cells where each digit is bigger than the one before.",
+		"tip": "A 1 always starts a sequence unless it is the last cell; a 9 always ends one. A clue of 0 means the line only ever goes down."},
+	{"id": "axia", "name": "Axia", "short": "A digit in an Axia-marked cell must not appear again along either of the two diagonals through it.",
+		"rules": "Normal Sudoku rules apply. The digit in a cell marked with diagonal ticks may not appear again on either of the two diagonals through that cell. Not every cell with this property is marked.",
+		"tip": "Follow both diagonals out to the edges: every cell they pass loses the marked digit as a candidate."},
+	{"id": "between", "name": "Between Lines", "short": "Digits along a Between line must be strictly between the digits in the circles at its ends.",
+		"rules": "Normal Sudoku rules apply. Digits on a grey line between two circles must lie strictly between the digits in the circles. Digits may repeat on a line if Sudoku rules allow.",
+		"tip": "The two circles differ by at least 2, and a longer line pushes them further apart. Middle cells can never be 1 or 9."},
+	{"id": "bishop", "name": "Bishop", "short": "Digits along each Bishop line cannot repeat.",
+		"rules": "Normal Sudoku rules apply. Digits on a gold Bishop line (moving only diagonally, possibly bending) may not repeat. Lines may cross but never share a cell.",
+		"tip": "A 9-cell Bishop line contains every digit once, like an extra box."},
+	{"id": "king", "name": "Chess King", "short": "The eight cells directly surrounding a digit cannot contain the same digit.",
+		"rules": "Normal Sudoku rules apply. Cells a chess king's move apart (any of the 8 cells around a cell) can never contain the same digit.",
+		"tip": "Beyond normal rules only the four diagonal touches matter: a digit rules itself out of the corners around it."},
+	{"id": "knight", "name": "Chess Knight", "short": "A digit cannot be within a Chess Knight's distance from itself.",
+		"rules": "Normal Sudoku rules apply. Cells a chess knight's move apart (an L-shape: two steps one way, one step sideways) can never contain the same digit.",
+		"tip": "A digit placed in a box knocks out several cells of the neighbouring boxes; look for boxes where only one spot is left for it."},
+	{"id": "consecutive", "name": "Consecutive", "short": "Neighbours across a hollow bar are consecutive; all others are not.",
+		"rules": "Normal Sudoku rules apply. Cells separated by a hollow bar hold consecutive digits (differ by 1). All bars are shown: neighbours without a bar are never consecutive.",
+		"tip": "Missing bars are clues too: a 5 with no bars around it can't touch a 4 or a 6."},
+	{"id": "couples", "name": "Couples", "short": "Tilde-linked cells share parity; slashed tildes require different parity.",
+		"rules": "Normal Sudoku rules apply. Cells joined by a tilde (~) have the same parity (both odd or both even). Cells joined by a crossed tilde have different parity. Not every such pair is marked.",
+		"tip": "Chains of tildes carry parity along: an even cell spreads its evenness through every plain tilde."},
+	{"id": "diagonal", "name": "Diagonal", "short": "The digits 1 to 9 appear once on each of the two main diagonals.",
+		"rules": "Normal Sudoku rules apply. In addition, each of the two main diagonals must contain the digits 1 to 9 exactly once.",
+		"tip": "The centre cell sits on both diagonals plus its row, column and box — it is often the first to crack."},
+	{"id": "dutch_flatmates", "name": "Dutch Flatmates", "short": "Every 5 has a 1 directly above it, a 9 directly below it, or both.",
+		"rules": "Normal Sudoku rules apply. Every 5 must have a 1 directly above it or a 9 directly below it (or both).",
+		"tip": "A 5 in the top row needs a 9 below it; a 5 in the bottom row needs a 1 above it."},
+	{"id": "dutch_whispers", "name": "Dutch Whispers", "short": "Adjacent digits on an orange line differ by at least 4.",
+		"rules": "Normal Sudoku rules apply. Adjacent digits along an orange line must differ by at least 4.",
+		"tip": "A 5 on an orange line can only touch 1 or 9. Digits on the line alternate between low and high."},
+	{"id": "even_odd", "name": "Even-Odd", "short": "Squares hold even digits; circles hold odd digits.",
+		"rules": "Normal Sudoku rules apply. A digit in a grey square must be even (2, 4, 6, 8). A digit in a grey circle must be odd (1, 3, 5, 7, 9).",
+		"tip": "Every row, column and box has exactly four even and five odd digits — count the squares and circles."},
+	{"id": "friendly", "name": "Friendly-Cells", "short": "A heart cell matches its row, column, or box number.",
+		"rules": "Normal Sudoku rules apply. A digit in a heart cell equals its row number, its column number or its box number (rows, columns and boxes are numbered 1 to 9 from the top left, boxes in reading order). Not every friendly cell is marked.",
+		"tip": "Each heart has at most three possible digits. Check which of them the row, column and box still allow."},
+	{"id": "german_whispers", "name": "German Whispers", "short": "Adjacent digits on a green line differ by at least 5.",
+		"rules": "Normal Sudoku rules apply. Neighbouring digits along a green line must differ by at least 5.",
+		"tip": "5 can never sit on a green line, and digits along a line alternate between low (1-4) and high (6-9)."},
+	{"id": "greater_than", "name": "Greater-than", "short": "Signs between cells point to the smaller digit.",
+		"rules": "Normal Sudoku rules apply. A < or > sign between two cells points to the smaller digit; the open side holds the bigger digit. Not every pair is marked.",
+		"tip": "Follow chains of signs: a cell bigger than three others in a row can't be smaller than 4."},
+	{"id": "index", "name": "Index Lookup", "short": "Arrow digits point to positions of other digits in the row or column.",
+		"rules": "Normal Sudoku rules apply. A cell with a horizontal arrow in row R, column C holding digit X means column X of row R holds the digit C. A vertical arrow in row R, column C holding X means row X of column C holds the digit R. Rows and columns are numbered 1 to 9.",
+		"tip": "A horizontal arrow in column 1 points to where the 1 goes in its row. Placing that digit tells you the arrow cell too."},
+	{"id": "jigsaw", "name": "Jigsaw", "short": "Rows, columns and irregular 9-cell regions each contain 1 to 9 once.",
+		"rules": "Every row, every column and every bold irregular region must contain the digits 1 to 9 exactly once. There are no 3x3 boxes.",
+		"tip": "Use the 'law of leftovers': the cells of a region that stick out of a set of rows must match the cells of other regions that poke in."},
+	{"id": "killer", "name": "Killer", "short": "Cage digits sum to the clue and cannot repeat within a cage.",
+		"rules": "Normal Sudoku rules apply. The digits inside each dashed cage must sum to the small number in its corner, and digits cannot repeat within a cage.",
+		"tip": "Every row, column and box sums to 45. Add up the cages in a box and the difference reveals the leftover cell."},
+	{"id": "kropki", "name": "Kropki", "short": "Hollow dots mark consecutive neighbours; solid dots mark a 2:1 ratio.",
+		"rules": "Normal Sudoku rules apply. Cells joined by a white dot contain consecutive digits. Cells joined by a black dot have one digit exactly double the other. All possible dots are shown: if there is no dot between two cells, they are neither consecutive nor in a 2:1 ratio.",
+		"tip": "Black dots can only use 1,2,3,4,6,8. A chain of two black dots must be 1-2-4 or 2-4-8."},
+	{"id": "little_killer", "name": "Little Unique Killer", "short": "Outside numbers give sums along arrows; digits cannot repeat within a sum.",
+		"rules": "Normal Sudoku rules apply. A number outside the grid gives the sum of all digits along its arrow, to the edge of the grid. Digits along an arrow may not repeat.",
+		"tip": "Short diagonals are the easiest start: a 2-cell sum of 3 must be 1 and 2."},
+	{"id": "lockout", "name": "Lockout Lines", "short": "Line digits lie outside the range of the end digits, which differ by at least 4.",
+		"rules": "Normal Sudoku rules apply. The two squares at the ends of an olive line differ by at least 4. Digits between them on the line lie outside the range of the end digits (smaller than both or bigger than both). Digits may repeat on a line if Sudoku rules allow.",
+		"tip": "A 5 can never be an end square. The ends must leave room outside their range for the inner digits."},
+	{"id": "non_consecutive", "name": "Non-consecutive", "short": "Orthogonally adjacent cells cannot contain consecutive digits.",
+		"rules": "Normal Sudoku rules apply. Digits in cells that share an edge can never be consecutive: a 4 can't touch a 3 or a 5.",
+		"tip": "Each placed digit removes two candidates from all four neighbours. A 1 or 9 is the least restrictive, a middle digit the most."},
+	{"id": "palindrome", "name": "Palindrome", "short": "Digits on a line read the same forwards and backwards.",
+		"rules": "Normal Sudoku rules apply. Digits on a blue line read the same forwards and backwards.",
+		"tip": "Each cell is a twin of the cell at the same distance from the other end; the twins can never share a row, column or box."},
+	{"id": "pulse", "name": "Pulse", "short": "Neighbours of a pulse cell relate to its digit; 1 is excluded.",
+		"rules": "Normal Sudoku rules apply. Each neighbour sharing an edge with a ringed pulse cell holds a digit that is one more or one less than the pulse digit, a multiple of it, or a divisor of it. Neither the pulse cell nor its neighbours may be 1.",
+		"tip": "Big odd pulse digits are strict: a 7 only allows 6 and 8 around it, a 9 only 3 and 8."},
+	{"id": "quadruple", "name": "Quadruple", "short": "Each circled digit appears in the four surrounding cells.",
+		"rules": "Normal Sudoku rules apply. Digits in a circle at a grid corner must all appear in at least one of the four cells around that corner.",
+		"tip": "A circle with four digits fixes the whole 2x2 square except for the order."},
+	{"id": "reflection", "name": "Reflection", "short": "Lines with the same starting symbol share the same digit sequence.",
+		"rules": "Normal Sudoku rules apply. Lines starting at the same symbol carry the same digits in the same order from that symbol, up to the length of the shorter line.",
+		"tip": "Matching cells on reflected lines hold equal digits, so they can never share a row, column or box."},
+	{"id": "renban", "name": "Renban", "short": "Digits on a line are distinct and consecutive, in any order.",
+		"rules": "Normal Sudoku rules apply. A purple line contains a set of different, consecutive digits in any order, for example 3-5-4-2.",
+		"tip": "A line of n cells covers exactly n consecutive digits. A 5-cell line always includes a 5."},
+	{"id": "running", "name": "Running Cells", "short": "Counts of consecutive-digit cells match the clue.",
+		"rules": "Normal Sudoku rules apply. A number left of a row (or above a column) tells how many cells in that row (column) belong to a run of neighbours that differ by exactly 1, such as 3-4 or 7-6-5.",
+		"tip": "A clue of 0 means no two neighbours in that line are consecutive. A high clue packs many consecutive pairs together."},
+	{"id": "sandwich", "name": "Sandwich", "short": "Digits between 1 and 9 in a row or column sum to the outside clue.",
+		"rules": "Normal Sudoku rules apply. A number outside the grid gives the sum of the digits sandwiched between the 1 and the 9 in that row or column. A 0 means the 1 and 9 are next to each other.",
+		"tip": "A sum of 35 means only the 1 and 9 sit at the ends of the line. Small sums keep the 1 and 9 close together."},
+	{"id": "skyscraper", "name": "Skyscraper", "short": "Outside numbers count visible skyscrapers; larger digits are taller.",
+		"rules": "Normal Sudoku rules apply. Each digit is a building of that height. A number outside the grid tells how many buildings you can see from that side; taller buildings hide shorter ones behind them.",
+		"tip": "A clue of 1 means the 9 is right next to it. A clue of 9 means the line reads 1 to 9 in order."},
+	{"id": "slingshot", "name": "Slingshot", "short": "An arrow's digit gives the distance to a matching digit.",
+		"rules": "Normal Sudoku rules apply. A bent arrow enters a cell from a neighbour (the source) and turns. The digit N in the arrow cell means the source's digit appears again exactly N cells away from the arrow cell, in the direction the arrow leaves.",
+		"tip": "The arrow digit can't be bigger than the number of cells left before the edge in the arrow's direction."},
+	{"id": "slow_thermo", "name": "Slow Thermo", "short": "Digits on the line never decrease from the bulb.",
+		"rules": "Normal Sudoku rules apply. Digits along a pale green thermometer never decrease from the bulb end. Equal digits are allowed if Sudoku rules allow.",
+		"tip": "Two equal digits in a row on a line can only happen where the line crosses into another box diagonally."},
+	{"id": "thermo", "name": "Thermo", "short": "Digits along a thermometer strictly increase from the bulb.",
+		"rules": "Normal Sudoku rules apply. Digits along each thermometer must strictly increase starting from the round bulb end.",
+		"tip": "A thermometer of length n restricts its bulb to at most 10-n and its tip to at least n."},
+	{"id": "twisted", "name": "Twisted Consecutive", "short": "Diagonal neighbours across hollow squares are consecutive; others are not.",
+		"rules": "Normal Sudoku rules apply. A hollow square at a grid corner means both diagonal pairs of the four cells around it are consecutive. All squares are shown: every other diagonal pair is not consecutive.",
+		"tip": "Diagonal neighbours without a square never differ by 1. A square pairs two 'crossing' consecutive pairs."},
+	{"id": "universal", "name": "Universal", "short": "No digit repeats in the same position across the nine boxes.",
+		"rules": "Normal Sudoku rules apply. Cells in the same position of each 3x3 box (for example the centre of every box) must all hold different digits.",
+		"tip": "Think of each box position as an extra region of nine cells spread over the grid."},
+	{"id": "vertex", "name": "Vertex", "short": "The tip digit is the sum or difference of the two arm digits.",
+		"rules": "Normal Sudoku rules apply. A teal V joins a tip cell (at the dot) to two arm cells. The tip digit equals the sum or the difference of the two arm digits.",
+		"tip": "If the arms sum to more than 9, the tip must be their difference."},
+	{"id": "windoku", "name": "Windoku", "short": "Four highlighted 3x3 regions each contain 1 to 9.",
+		"rules": "Normal Sudoku rules apply. Each of the four shaded 3x3 windows must also contain the digits 1 to 9 once.",
+		"tip": "The windows overlap normal boxes, so the cells outside the windows form hidden regions too."},
+	{"id": "xsum", "name": "X-Sum", "short": "Outside numbers sum the first X cells from that direction.",
+		"rules": "Normal Sudoku rules apply. A number outside the grid gives the sum of the first X digits seen from that side, where X is the first digit in that direction.",
+		"tip": "If the first digit is 1, the clue is 1. A clue of 45 means the first digit is 9."},
+	{"id": "xv", "name": "XV", "short": "Neighbours across an X sum to 10; across a V they sum to 5.",
+		"rules": "Normal Sudoku rules apply. Cells separated by an X sum to 10; cells separated by a V sum to 5. All possible X's and V's are shown: neighbours without a symbol never sum to 5 or 10.",
+		"tip": "A V can only be 1+4 or 2+3, so a V pins both cells to small digits. 5 can never touch an X."},
+	{"id": "zipper", "name": "Zipper Line", "short": "Digits equidistant from a line's centre sum to the centre digit.",
+		"rules": "Normal Sudoku rules apply. On a lavender zipper line, digits the same distance from the middle cell sum to the digit in the middle cell.",
+		"tip": "The middle digit is always bigger than every other digit on its line."},
+	{"id": "region_sum", "name": "Region Sum Lines", "short": "Where a line crosses box borders, each piece sums to the same total.",
+		"rules": "Normal Sudoku rules apply. Each blue line is cut into pieces by the 3x3 box borders it crosses. Every piece of a line has the same sum.",
+		"tip": "A piece of one cell sets the sum for the whole line. Long pieces need small digits."},
+	{"id": "entropic", "name": "Entropic Lines", "short": "Any 3 cells in a row on a line hold a low, a middle and a high digit.",
+		"rules": "Normal Sudoku rules apply. Along an entropic line, any three cells in a row contain one low digit (1-3), one middle digit (4-6) and one high digit (7-9).",
+		"tip": "Cells three steps apart on a line are always from the same group."},
+	{"id": "modular", "name": "Modular Lines", "short": "Any 3 cells in a row on a line have different remainders when divided by 3.",
+		"rules": "Normal Sudoku rules apply. Along a modular line, any three cells in a row contain one digit from {1,4,7}, one from {2,5,8} and one from {3,6,9}.",
+		"tip": "Cells three steps apart on a line share a remainder group."},
+	{"id": "parity_lines", "name": "Parity Lines", "short": "Digits along a line alternate between odd and even.",
+		"rules": "Normal Sudoku rules apply. Neighbouring digits on a red line have different parity: odd and even alternate.",
+		"tip": "A line with an odd number of cells starts and ends with the same parity."},
+	{"id": "nabner", "name": "Nabner Lines", "short": "No two digits on a line are the same or consecutive.",
+		"rules": "Normal Sudoku rules apply. Digits on a yellow line never repeat, and no two of them are consecutive (they differ by at least 2), even if they're far apart on the line.",
+		"tip": "A line of 5 cells can only be 1-3-5-7-9."},
+	{"id": "ten_lines", "name": "Ten Lines", "short": "Each line splits into pieces that each sum to 10.",
+		"rules": "Normal Sudoku rules apply. Each grey line can be cut into one or more pieces of neighbouring cells, and every piece sums to exactly 10.",
+		"tip": "The line's total is a multiple of 10. A 9 always sits next to a 1 on the same piece."},
+	{"id": "double_arrow", "name": "Double Arrows", "short": "The two circles at the ends sum to the digits between them.",
+		"rules": "Normal Sudoku rules apply. The digits in the two circles at the ends of a line add up to the sum of the digits on the line between them. Digits may repeat on a line if Sudoku rules allow.",
+		"tip": "A short line between two small circles must hold small digits."},
+	{"id": "pill_arrow", "name": "Pill Arrows", "short": "The arrow's digits sum to the 2-digit number in its pill.",
+		"rules": "Normal Sudoku rules apply. The two cells in a pill form a 2-digit number, read left to right or top to bottom. The digits along the arrow coming out of the pill sum to that number.",
+		"tip": "An arrow of 2-4 cells sums to at most 9, 17, 24 or 30, so the pill's first digit is small."},
+	{"id": "fortress", "name": "Fortress", "short": "Digits in grey cells are bigger than their white neighbours.",
+		"rules": "Normal Sudoku rules apply. Every digit in a grey cell is bigger than the digits in the white cells it shares an edge with.",
+		"tip": "A grey cell with four white neighbours can't be smaller than 5. White cells next to many greys are small."},
+	{"id": "min_max", "name": "Minimum / Maximum", "short": "Marked cells are smaller (min) or bigger (max) than all their neighbours.",
+		"rules": "Normal Sudoku rules apply. A cell marked MIN is smaller than every cell it shares an edge with; a cell marked MAX is bigger than all of them.",
+		"tip": "A MIN with four neighbours can't be bigger than 5; a MAX with four neighbours can't be smaller than 5."},
+	{"id": "clone", "name": "Clone", "short": "Areas of the same shape and colour hold the same digits.",
+		"rules": "Normal Sudoku rules apply. Shaded areas come in pairs of the same shape and colour. Matching cells in a pair hold the same digit.",
+		"tip": "A digit placed in one area copies straight into its clone."},
+	{"id": "frame", "name": "Frame", "short": "Outside numbers give the sum of the first three cells from that side.",
+		"rules": "Normal Sudoku rules apply. A number outside the grid is the sum of the first three digits in that row or column, seen from that side.",
+		"tip": "The first three cells of a row are in one box, so they're always three different digits."},
+	{"id": "numbered_rooms", "name": "Numbered Rooms", "short": "The first digit tells where the outside number sits in the line.",
+		"rules": "Normal Sudoku rules apply. A number X outside the grid: if the first digit seen from that side is N, then the N-th cell from that side contains X.",
+		"tip": "If the first digit is 1, it points at itself, so it equals the clue."},
+	{"id": "rossini", "name": "Rossini", "short": "Arrows show the first three cells going up; no arrow means neither way.",
+		"rules": "Normal Sudoku rules apply. An arrow outside the grid means the first three digits from that side increase in the direction of the arrow. Where there's no arrow, those three digits neither increase nor decrease.",
+		"tip": "A missing arrow is a clue too: the middle cell of the three is the biggest or the smallest."},
+	{"id": "battlefield", "name": "Battlefield", "short": "The clue sums the overlap of the two armies, or the gap between them.",
+		"rules": "Normal Sudoku rules apply. Read a row from the left (a column from the top): the first digit X sends an army of the first X cells, the last digit Y an army of the last Y cells. The outside number is the sum of the cells where the armies overlap, or of the cells between them if they don't meet.",
+		"tip": "A clue of 0 means the two armies exactly touch: X + Y = 9."},
+	{"id": "sum_product_dots", "name": "Sum & Product Dots", "short": "Numbers on edges give the sum (+) or the product (\u00d7) of the two cells.",
+		"rules": "Normal Sudoku rules apply. A +N between two cells means they sum to N. A \u00d7N means they multiply to N. Not every pair is marked.",
+		"tip": "Products narrow things down fast: \u00d77 can only be 1 and 7."},
+	{"id": "anti_diagonal", "name": "Anti-Diagonal", "short": "Each main diagonal contains only three different digits.",
+		"rules": "Normal Sudoku rules apply. Each of the two main diagonals contains exactly three different digits (each one three times).",
+		"tip": "The three diagonal cells inside a box are the three digits of that diagonal."},
+	{"id": "center_dot", "name": "Center Dot", "short": "The centre cells of the nine boxes also contain 1 to 9.",
+		"rules": "Normal Sudoku rules apply. The nine shaded centre cells of the 3x3 boxes form an extra region that contains the digits 1 to 9 once.",
+		"tip": "Use the centre region like a tenth box."},
+	{"id": "asterisk", "name": "Asterisk", "short": "The nine shaded cells in an asterisk shape contain 1 to 9.",
+		"rules": "Normal Sudoku rules apply. The nine shaded cells forming an asterisk contain the digits 1 to 9 once.",
+		"tip": "The asterisk crosses most boxes once: treat it as an extra region."},
+	{"id": "girandola", "name": "Girandola", "short": "The nine shaded cells in a windmill shape contain 1 to 9.",
+		"rules": "Normal Sudoku rules apply. The nine shaded cells (corners, the centre and the middle of each edge area) contain the digits 1 to 9 once.",
+		"tip": "The four grid corners are all in the girandola region."},
+	{"id": "argyle", "name": "Argyle", "short": "Digits on the diagonal argyle lines can't repeat.",
+		"rules": "Normal Sudoku rules apply. Digits on each of the eight diagonal lines of the argyle pattern can't repeat.",
+		"tip": "The two long lines that cross in the middle behave like extra regions of 8 cells."},
+	{"id": "queen", "name": "Chess Queen", "short": "A 9 can never see another 9 on a diagonal.",
+		"rules": "Normal Sudoku rules apply. Every 9 acts like a chess queen: no other 9 can be on the same diagonal.",
+		"tip": "Placing a 9 rules out 9s along both diagonals through it."},
+	{"id": "miracle", "name": "Miracle Sudoku", "short": "Anti-King, Anti-Knight and Non-consecutive rules all at once.",
+		"rules": "Normal Sudoku rules apply. Digits a king's or a knight's move apart can't be equal, and digits in orthogonally adjacent cells can't be consecutive.",
+		"tip": "These puzzles need very few givens. Look for patterns repeating across the grid."},
+	{"id": "magic_square", "name": "Magic Square", "short": "In the centre box, every row, column and diagonal sums to 15.",
+		"rules": "Normal Sudoku rules apply. The centre 3x3 box is a magic square: each of its rows, columns and both diagonals sum to 15.",
+		"tip": "The centre of a magic square is always 5 and its corners are always even."},
+	{"id": "toroidal", "name": "Toroidal", "short": "Irregular regions wrap around the edges of the grid.",
+		"rules": "Normal Sudoku rules apply. Each row, column and irregular region contains 1 to 9 once. Regions can wrap around the edges: leave the grid on one side and come back on the opposite side.",
+		"tip": "Check the edges: a region can continue on the far side of the grid."},
+	{"id": "ratio_dots", "name": "Ratio Dots", "short": "A dot with 1:N means one cell is N times the other.",
+		"rules": "Normal Sudoku rules apply. A dot marked 1:N between two cells means one digit is exactly N times the other. Not every such pair is marked.",
+		"tip": "1:2 pairs come from 1-2, 2-4, 3-6, 4-8; 1:3 only from 1-3, 2-6, 3-9."},
+	{"id": "difference_dots", "name": "Difference Dots", "short": "A number on an edge is the difference between the two cells.",
+		"rules": "Normal Sudoku rules apply. A number between two cells is the difference between their digits. Not every pair is marked.",
+		"tip": "A difference of 8 can only be 1 and 9."},
+	{"id": "product_lines", "name": "Product Lines", "short": "Where a line crosses box borders, each piece has the same product.",
+		"rules": "Normal Sudoku rules apply. Box borders cut each line into pieces. Every piece of a line multiplies to the same product.",
+		"tip": "A one-cell piece sets the product for the whole line. 5 and 7 can only multiply with themselves and small digits."},
+	{"id": "difference_lines", "name": "Difference Lines", "short": "Neighbours on a line all differ by the same amount.",
+		"rules": "Normal Sudoku rules apply. Every pair of neighbouring digits on a line differs by the same amount, for example 2-5-8 or 7-4-7.",
+		"tip": "A long line with a big step can only bounce between two values."},
+	{"id": "ratio_lines", "name": "Ratio Lines", "short": "Neighbours on a line are always in a 2:1 ratio.",
+		"rules": "Normal Sudoku rules apply. Every pair of neighbouring digits on a line has a 2:1 ratio: one is double the other.",
+		"tip": "Only 1, 2, 3, 4, 6 and 8 can sit on a ratio line; 5, 7 and 9 never do."},
+	{"id": "prime_composite", "name": "Prime & Composite", "short": "P cells hold a prime (2, 3, 5, 7); C cells a composite (4, 6, 8, 9).",
+		"rules": "Normal Sudoku rules apply. A cell marked P holds a prime digit (2, 3, 5 or 7). A cell marked C holds a composite digit (4, 6, 8 or 9). 1 is neither.",
+		"tip": "1 can never sit in a marked cell."},
+	{"id": "parity_regions", "name": "Even-Odd Regions", "short": "Outlined areas hold only even or only odd digits.",
+		"rules": "Normal Sudoku rules apply. Every digit inside an area marked E is even; every digit inside an area marked O is odd.",
+		"tip": "An odd area of five cells in one box uses all of 1, 3, 5, 7, 9 there."},
+	{"id": "missing_digit", "name": "Missing Digit", "short": "The outside digit isn't among the first three cells from that side.",
+		"rules": "Normal Sudoku rules apply. A digit outside the grid does not appear in the first three cells of that row or column, seen from that side.",
+		"tip": "Two clues on the same side of a box can rule a digit out of the whole 3-cell strip."},
+	{"id": "forbidden_digit", "name": "Forbidden Digit", "short": "A crossed-out digit in a cell can't go there.",
+		"rules": "Normal Sudoku rules apply. A small crossed-out digit in a cell means that digit can't be placed in that cell.",
+		"tip": "When eight digits are ruled out of a cell, the ninth must go there."},
+	{"id": "divisibility", "name": "Divisibility", "short": "Marked cells hold a digit divisible by 2, 3 or 4.",
+		"rules": "Normal Sudoku rules apply. A cell marked \u00f72 holds an even digit, \u00f73 holds 3, 6 or 9, and \u00f74 holds 4 or 8.",
+		"tip": "\u00f74 leaves only two choices: 4 or 8."},
+	{"id": "kenken", "name": "Mathdoku (KenKen)", "short": "Cages show a target and an operation: + \u2212 \u00d7 \u00f7. No 3\u00d73 boxes.",
+		"rules": "Each row and column contains 1 to 9 once (there are no 3\u00d73 boxes). The digits in each cage combine to the number shown with its operation: + sum, \u00d7 product, \u2212 difference and \u00f7 quotient (the last two only in 2-cell cages). Digits don't repeat within a cage.",
+		"tip": "A 2-cell \u00f74 cage can only be 1-4 or 2-8."},
+	{"id": "alphabet", "name": "Alphabet Sudoku", "short": "Letters A to I instead of digits.",
+		"rules": "Fill the grid so every row, column and 3x3 box contains the letters A to I once. Type 1-9 (or use the pad): 1 places A, 2 places B, and so on.",
+		"tip": "Works exactly like Classic Sudoku: the letters are just labels."},
+	{"id": "wordoku", "name": "Wordoku", "short": "The nine letters of a word instead of digits.",
+		"rules": "Each puzzle uses the nine different letters of a word. Every row, column and 3x3 box contains each of those letters once. Type 1-9 for the letters in word order.",
+		"tip": "The pad shows the letters in word order: key 1 places the first letter, 2 the second, and so on."},
+	{"id": "symbol", "name": "Symbol Sudoku", "short": "Nine symbols instead of digits.",
+		"rules": "Every row, column and 3x3 box contains each of the nine symbols once. Type 1-9: the pad shows which symbol each number places.",
+		"tip": "Works exactly like Classic Sudoku: the symbols are just labels."},
+	{"id": "color", "name": "Color Sudoku", "short": "Nine colours instead of digits.",
+		"rules": "Every row, column and 3x3 box contains each of the nine colours once. Type 1-9: the pad shows which colour each number places.",
+		"tip": "Works exactly like Classic Sudoku: the colours are just labels."},
+	{"id": "roman", "name": "Roman Numeral Sudoku", "short": "Roman numerals I to IX instead of digits.",
+		"rules": "Every row, column and 3x3 box contains the numerals I to IX once. Type 1-9.",
+		"tip": "Works exactly like Classic Sudoku with the numbers written I, II, III \u2026 IX."},
+	{"id": "ultimate", "name": "Ultimate Sudoku", "short": "Nine rules in one puzzle. Each of the 100 types mixes its own nine.",
+		"rules": "Normal Sudoku rules apply, plus the nine rules of the puzzle's type: a shape rule, two kinds of line, dots, signs, outside clues, cell marks and two global rules. The rules card lists them.",
+		"tip": "Start with the rule that pins digits hardest (sums, thermometers, dots), then let the global rules spread what you found."},
+]
+## Variants playable outside CORE (not in the daily rotation, multiplayer, pack builds or "all variants" counts).
+const EXTRA := ["ultimate"]
+
+
+static func get_info(id: String) -> Dictionary:
+	if id.begins_with("mini_"):
+		return _mini_info(id)
+	for v in LIST:
+		if v.id == id:
+			return v
+	return {}
+
+
+static var _mini_cache := {}
+## Tips that need other numbers on 6x6.
+const MINI_TIPS := {
+	"sandwich": "A sum of 14 means the 1 and 6 sit at the two ends. Small sums keep the 1 and 6 close together.",
+	"skyscraper": "A clue of 1 means the 6 is right next to it. A clue of 6 means the line reads 1 to 6 in order.",
+	"xsum": "If the first digit is 1, the clue is 1. A clue of 21 means the first digit is 6.",
+	"difference_dots": "A difference of 5 can only be 1 and 6.",
+	"ratio_dots": "1:2 pairs come from 1-2, 2-4, 3-6; 1:3 only from 1-3 and 2-6.",
+	"kenken": "A 2-cell ÷3 cage can only be 1-3 or 2-6.",
+}
+
+
+## "Mini Killer": the 9x9 entry, retold for a 6x6 grid.
+static func _mini_info(id: String) -> Dictionary:
+	if _mini_cache.has(id):
+		return _mini_cache[id]
+	var base: Dictionary = get_info(id.trim_prefix("mini_"))
+	if base.is_empty():
+		return {}
+	var fix := func(t: String) -> String:
+		for pair in [["1 to 9", "1 to 6"], ["1-9", "1-6"], ["no 3x3 boxes", "no boxes"], ["no 3×3 boxes", "no boxes"], ["No 3×3 boxes", "No boxes"], ["3x3 box", "2×3 box"],
+				["3x3", "2×3"], ["9 cells", "6 cells"], ["9-cell", "6-cell"], ["(2, 4, 6, 8)", "(2, 4, 6)"], ["(1, 3, 5, 7, 9)", "(1, 3, 5)"],
+				["1 and the 9", "1 and the 6"], ["1 and 9", "1 and 6"], ["1 or 9", "1 or 6"], ["sums to 45", "sums to 21"], ["10-n", "7-n"],
+				["one low digit (1-3), one middle digit (4-6) and one high digit (7-9)", "one low digit (1-2), one middle digit (3-4) and one high digit (5-6)"]]:
+			t = t.replace(pair[0], pair[1])
+		return t
+	var info := base.duplicate()
+	var rules := str(base.get("rules", ""))
+	info.id = id
+	info.name = "Mini " + str(base.name)
+	info.short = "6×6 · " + fix.call(str(base.short))
+	if rules.begins_with("Normal Sudoku rules apply. "):
+		rules = "A 6×6 grid: every row, column and 2×3 box holds 1 to 6 once. " + rules.trim_prefix("Normal Sudoku rules apply. ")
+	info.rules = fix.call(rules)
+	info.tip = MINI_TIPS.get(id.trim_prefix("mini_"), fix.call(str(base.get("tip", ""))))
+	_mini_cache[id] = info
+	return info
+
+
+## Every catalog entry: the 9x9 variants, then the Mini ones.
+static func all_list() -> Array:
+	var out: Array = LIST.duplicate()
+	for m in MINI:
+		out.append(get_info("mini_" + m))
+	return out
+
+
+## The 9x9 variants (the daily puzzle rotates through these).
+static func standard() -> Array:
+	return CORE.filter(func(v): return not v.begins_with("mini_"))
+
+
+static func is_playable(id: String) -> bool:
+	return id in CORE or id in EXTRA
+
+
+static func display_name(id: String) -> String:
+	return get_info(id).get("name", id.capitalize())
+
+
+## Home-page groups: [id, name, variant ids] in display order. Every variant is in exactly one group.
+const CATEGORIES := [
+	["ultimate", "Ultimate", ["ultimate"]],
+	["regions", "Regions", ["classic", "jigsaw", "toroidal", "diagonal", "anti_diagonal", "windoku", "universal", "center_dot", "asterisk", "girandola", "argyle", "magic_square"]],
+	["lines", "Lines", ["thermo", "slow_thermo", "german_whispers", "dutch_whispers", "renban", "palindrome", "between", "lockout", "zipper", "bishop", "reflection", "region_sum", "entropic", "modular", "parity_lines", "nabner", "product_lines", "difference_lines", "ratio_lines"]],
+	["sums", "Sums & Arrows", ["killer", "little_killer", "arrow", "double_arrow", "pill_arrow", "ten_lines", "kenken"]],
+	["outside", "Outside Clues", ["sandwich", "skyscraper", "xsum", "ascending", "running", "frame", "numbered_rooms", "rossini", "battlefield", "missing_digit"]],
+	["dots", "Dots & Signs", ["kropki", "xv", "consecutive", "twisted", "greater_than", "couples", "sum_product_dots", "quadruple", "ratio_dots", "difference_dots"]],
+	["marks", "Cell Marks", ["even_odd", "axia", "friendly", "pulse", "index", "fortress", "min_max", "clone", "vertex", "slingshot", "prime_composite", "parity_regions", "forbidden_digit", "divisibility"]],
+	["themes", "Letters & Symbols", ["alphabet", "wordoku", "symbol", "color", "roman"]],
+	["global", "Chess & Global Rules", ["king", "knight", "queen", "miracle", "non_consecutive", "dutch_flatmates"]],
+	["mini", "Mini 6×6", ["mini_classic", "mini_killer", "mini_thermo", "mini_arrow", "mini_jigsaw", "mini_diagonal", "mini_kropki", "mini_xv", "mini_even_odd", "mini_renban", "mini_sandwich", "mini_skyscraper", "mini_xsum", "mini_little_killer", "mini_palindrome", "mini_between", "mini_consecutive", "mini_greater_than", "mini_non_consecutive", "mini_king", "mini_knight", "mini_region_sum", "mini_entropic", "mini_parity_lines", "mini_zipper", "mini_slow_thermo", "mini_kenken", "mini_difference_dots", "mini_ratio_dots", "mini_sum_product_dots"]],
+]
+
+
+static func category(id: String) -> String:
+	for c in CATEGORIES:
+		if c[2].has(id):
+			return c[0]
+	return ""

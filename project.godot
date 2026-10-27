@@ -1,0 +1,7 @@
+; Puzzle builder: the engine of a Sudoku variants game, used headless to build puzzle packs.
+config_version=5
+
+[application]
+
+config/name="sudoku-puzzle-builder"
+config/features=PackedStringArray("4.7")

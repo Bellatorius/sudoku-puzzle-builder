@@ -1,0 +1,54 @@
+name: Build Ultimate packs
+# Builds Ultimate Sudoku puzzles: one job per level and range of types (`per_type` puzzles of each type).
+# Every job uploads puzzles/_parts/ultimate_<level>_t<first>-<last>.json as an artifact; the game repo downloads
+# them all (tools/fetch_builder.py <run id>) and merges them with tools/build_ultimate.gd -- merge.
+# A job stopped by the time limit still uploads what it built (the part is saved after every puzzle).
+run-name: ultimate ${{ inputs.levels }} x${{ inputs.per_type }} ${{ inputs.tag }}
+on:
+  workflow_dispatch:
+    inputs:
+      levels:
+        description: 'Levels as a JSON list'
+        required: true
+        default: '["beginner", "easy", "medium", "hard", "expert", "master"]'
+      ranges:
+        description: 'Type ranges as a JSON list of "first-last"'
+        required: true
+        default: '["1-5", "6-10", "11-15", "16-20", "21-25", "26-30", "31-35", "36-40", "41-45", "46-50", "51-55", "56-60", "61-65", "66-70", "71-75", "76-80", "81-85", "86-90", "91-95", "96-100"]'
+      per_type:
+        description: "Puzzles of each type per level"
+        required: true
+        default: "5"
+      tag:
+        description: "Free label shown in the run name"
+        required: false
+        default: ""
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        level: ${{ fromJSON(inputs.levels) }}
+        range: ${{ fromJSON(inputs.ranges) }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Get Godot 4.7.2
+        run: |
+          curl -sL -o godot.zip https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip
+          unzip -q godot.zip && mv Godot_v4.7.2-stable_linux.x86_64 godot && chmod +x godot
+      - name: Import project
+        run: timeout 300 ./godot --headless --path . --import || true
+      - name: Build part
+        timeout-minutes: 330
+        run: |
+          IFS=- read FIRST LAST <<< "${{ matrix.range }}"
+          ./godot --headless --path . -s tools/build_ultimate.gd -- part ${{ matrix.level }} $FIRST $LAST ${{ inputs.per_type }} || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ultimate_${{ matrix.level }}_${{ matrix.range }}
+          path: puzzles/_parts/*.json
+          if-no-files-found: warn
