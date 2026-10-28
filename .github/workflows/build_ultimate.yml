@@ -1,40 +1,91 @@
 name: Build Ultimate packs
 # Builds Ultimate Sudoku puzzles: one job per level and range of types (`per_type` puzzles of each type).
-# Every job uploads puzzles/_parts/ultimate_<level>_t<first>-<last>.json as an artifact; the game repo downloads
-# them all (tools/fetch_builder.py <run id>) and merges them with tools/build_ultimate.gd -- merge.
+# Every job uploads puzzles/_parts/ultimate_<level>_t<first>-<last>.json as an artifact named
+# ultimate_<level>_<first>-<last>; the game repo downloads them (tools/fetch_builder.py <run ids>) and merges them.
 # A job stopped by the time limit still uploads what it built (the part is saved after every puzzle).
-run-name: ultimate ${{ inputs.levels }} x${{ inputs.per_type }} ${{ inputs.tag }}
+# Top-ups (started by "Check Ultimate builds"): `jobs` lists "level:first-last:run id"; each job first downloads
+# that run's part and only builds the puzzles it is missing, with fresh seeds from `first_round` on.
+run-name: ultimate ${{ inputs.tag }} x${{ inputs.per_type }}
 on:
   workflow_dispatch:
     inputs:
       levels:
-        description: 'Levels as a JSON list'
-        required: true
+        description: 'Levels as a JSON list (ignored when jobs is set)'
+        required: false
         default: '["beginner", "easy", "medium", "hard", "expert", "master"]'
       ranges:
-        description: 'Type ranges as a JSON list of "first-last"'
-        required: true
+        description: 'Type ranges as a JSON list of "first-last" (ignored when jobs is set)'
+        required: false
         default: '["1-5", "6-10", "11-15", "16-20", "21-25", "26-30", "31-35", "36-40", "41-45", "46-50", "51-55", "56-60", "61-65", "66-70", "71-75", "76-80", "81-85", "86-90", "91-95", "96-100"]'
+      jobs:
+        description: 'Exact jobs as a JSON list of "level:first-last[:resume run id]" (top-ups)'
+        required: false
+        default: ''
       per_type:
         description: "Puzzles of each type per level"
         required: true
         default: "5"
-      tag:
-        description: "Free label shown in the run name"
+      first_round:
+        description: "First seed round (top-up N uses 2N so it never repeats seeds)"
         required: false
-        default: ""
+        default: "0"
+      tag:
+        description: "Label in the run name: full, or topup-N for top-ups"
+        required: false
+        default: "full"
+
+permissions:
+  actions: read
+  contents: read
 
 jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      jobs: ${{ steps.p.outputs.jobs }}
+    steps:
+      - id: p
+        env:
+          JOBS: ${{ inputs.jobs }}
+          LEVELS: ${{ inputs.levels }}
+          RANGES: ${{ inputs.ranges }}
+        run: |
+          python3 - <<'EOF' >> "$GITHUB_OUTPUT"
+          import json, os
+          jobs = os.environ["JOBS"].strip()
+          if jobs:
+              out = json.loads(jobs)
+          else:
+              out = [l + ":" + r for l in json.loads(os.environ["LEVELS"]) for r in json.loads(os.environ["RANGES"])]
+          print("jobs=" + json.dumps(out))
+          EOF
+
   build:
+    needs: plan
     runs-on: ubuntu-latest
     timeout-minutes: 350
     strategy:
       fail-fast: false
       matrix:
-        level: ${{ fromJSON(inputs.levels) }}
-        range: ${{ fromJSON(inputs.ranges) }}
+        job: ${{ fromJSON(needs.plan.outputs.jobs) }}
     steps:
       - uses: actions/checkout@v4
+      - name: Read job
+        id: j
+        run: |
+          IFS=: read LEVEL RANGE RESUME <<< "${{ matrix.job }}"
+          IFS=- read FIRST LAST <<< "$RANGE"
+          echo "level=$LEVEL" >> "$GITHUB_OUTPUT"; echo "range=$RANGE" >> "$GITHUB_OUTPUT"
+          echo "first=$FIRST" >> "$GITHUB_OUTPUT"; echo "last=$LAST" >> "$GITHUB_OUTPUT"; echo "resume=$RESUME" >> "$GITHUB_OUTPUT"
+      - name: Resume from an earlier run
+        if: steps.j.outputs.resume != ''
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: ultimate_${{ steps.j.outputs.level }}_${{ steps.j.outputs.range }}
+          path: puzzles/_parts
+          run-id: ${{ steps.j.outputs.resume }}
+          github-token: ${{ github.token }}
       - name: Get Godot 4.7.2
         run: |
           curl -sL -o godot.zip https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip
@@ -44,11 +95,11 @@ jobs:
       - name: Build part
         timeout-minutes: 330
         run: |
-          IFS=- read FIRST LAST <<< "${{ matrix.range }}"
-          ./godot --headless --path . -s tools/build_ultimate.gd -- part ${{ matrix.level }} $FIRST $LAST ${{ inputs.per_type }} || true
+          ./godot --headless --path . -s tools/build_ultimate.gd -- part ${{ steps.j.outputs.level }} \
+            ${{ steps.j.outputs.first }} ${{ steps.j.outputs.last }} ${{ inputs.per_type }} 2 ${{ inputs.first_round }} || true
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: ultimate_${{ matrix.level }}_${{ matrix.range }}
+          name: ultimate_${{ steps.j.outputs.level }}_${{ steps.j.outputs.range }}
           path: puzzles/_parts/*.json
           if-no-files-found: warn

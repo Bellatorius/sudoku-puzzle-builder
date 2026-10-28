@@ -1,0 +1,23 @@
+name: Check Ultimate builds
+# Every 30 minutes: when the latest Ultimate build (and its top-ups) has finished, start a top-up run for every job
+# that failed or came up short (tools/check_ultimate.py; at most 3 top-ups). The run summary shows the counts.
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check and top up
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: python3 tools/check_ultimate.py

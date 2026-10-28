@@ -11,7 +11,7 @@ extends SceneTree
 ## example of its own (an easy puzzle with other seeds) in res://puzzles/ultimate_examples.json.
 ##
 ## Full packs, split over CI jobs (sudoku-puzzle-builder repo, workflow build_ultimate.yml):
-##     godot --headless -s tools/build_ultimate.gd -- part <level> <first type> <last type> <per type>
+##     godot --headless -s tools/build_ultimate.gd -- part <level> <first type> <last type> <per type> [rounds] [first round]
 ##         → res://puzzles/_parts/ultimate_<level>_t<first>-<last>.json (saved after every puzzle; a rerun
 ##           keeps what is there, so a job stopped by the time limit can be continued)
 ##     godot --headless -s tools/build_ultimate.gd -- merge
@@ -29,7 +29,7 @@ func _init() -> void:
 		quit()
 		return
 	if args.size() >= 5 and args[0] == "part":
-		_part(args[1], int(args[2]), int(args[3]), int(args[4]))
+		_part(args[1], int(args[2]), int(args[3]), int(args[4]), int(args[5]) if args.size() >= 6 else 2, int(args[6]) if args.size() >= 7 else 0)
 		quit()
 		return
 	if args.size() >= 1 and args[0] == "merge":
@@ -84,8 +84,10 @@ const PARTS := "res://puzzles/_parts/"
 
 
 ## `per` puzzles of every type from `first` to `last` at one level. Puzzle n of a type uses its own seeds
-## (seed base 7000 + n * 20000) and gets the id pack-ultimate-<level>-<type>-<n>.
-func _part(level: String, first: int, last: int, per: int) -> void:
+## (seed base 7000 + n * 20000) and gets the id pack-ultimate-<level>-<type>-<n>. A puzzle whose 30 seeds all fail
+## gets more tries with fresh seeds (+ r * 1,000,000 for r = first_round .. first_round + rounds - 1); top-up runs start
+## at a later round so they never repeat seeds an earlier run already tried.
+func _part(level: String, first: int, last: int, per: int, rounds := 2, first_round := 0) -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(PARTS))
 	var path := PARTS + "ultimate_%s_t%03d-%03d.json" % [level, first, last]
 	var list: Array = _read(path).get("puzzles", [])
@@ -98,7 +100,11 @@ func _part(level: String, first: int, last: int, per: int) -> void:
 			var id := "pack-ultimate-%s-%03d-%d" % [level, t, n]
 			if have.has(id):
 				continue
-			var p := _build(t, level, 7000 + n * 20000)
+			var p: Puzzle = null
+			for r in range(first_round, first_round + rounds):
+				p = _build(t, level, 7000 + n * 20000 + r * 1000000)
+				if p:
+					break
 			if p == null:
 				print("type %d %s #%d: FAILED" % [t, level, n])
 				continue
