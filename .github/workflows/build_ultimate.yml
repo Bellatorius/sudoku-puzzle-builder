@@ -1,14 +1,22 @@
 name: Build Ultimate packs
 # Builds Ultimate Sudoku puzzles: one job per level and range of types (`per_type` puzzles of each type).
-# Every job uploads puzzles/_parts/ultimate_<level>_t<first>-<last>.json as an artifact named
-# ultimate_<level>_<first>-<last>; the game repo downloads them (tools/fetch_builder.py <run ids>) and merges them.
+# `variant` picks the pack: ultimate (9 rules), ultimate_6, ultimate_3 or ultimate_2 (100 types each); one run per variant.
+# Every job uploads puzzles/_parts/<variant>_<level>_t<first>-<last>.json as an artifact named
+# <variant>_<level>_<first>-<last>; the game repo downloads them (tools/fetch_builder.py <run ids>) and merges them.
 # A job stopped by the time limit still uploads what it built (the part is saved after every puzzle).
 # Top-ups (started by "Check Ultimate builds"): `jobs` lists "level:first-last:run id"; each job first downloads
 # that run's part and only builds the puzzles it is missing, with fresh seeds from `first_round` on.
-run-name: ultimate ${{ inputs.tag }} x${{ inputs.per_type }}
+# Fail checks: a smoke job first builds 4 types at hard + master; if any fails, no build job starts.
+# A build job that sees every type of its range fail in a row gives up (marked failed) instead of running 5+ hours.
+run-name: ${{ inputs.variant }} ${{ inputs.tag }} x${{ inputs.per_type }}
 on:
   workflow_dispatch:
     inputs:
+      variant:
+        description: "Which Ultimate pack"
+        type: choice
+        options: [ultimate, ultimate_6, ultimate_3, ultimate_2]
+        default: ultimate
       levels:
         description: 'Levels as a JSON list (ignored when jobs is set)'
         required: false
@@ -60,8 +68,25 @@ jobs:
           print("jobs=" + json.dumps(out))
           EOF
 
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Get Godot 4.7.2
+        run: |
+          curl -sL -o godot.zip https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip
+          unzip -q godot.zip && mv Godot_v4.7.2-stable_linux.x86_64 godot && chmod +x godot
+      - name: Import project
+        run: timeout 300 ./godot --headless --path . --import || true
+      - name: Smoke check
+        timeout-minutes: 35
+        run: |
+          ./godot --headless --path . -s tools/build_ultimate.gd -- ${{ inputs.variant }} smoke 2>&1 | tee smoke.log
+          grep -q "^SMOKE ${{ inputs.variant }}: OK" smoke.log
+
   build:
-    needs: plan
+    needs: [plan, smoke]
     runs-on: ubuntu-latest
     timeout-minutes: 350
     strategy:
@@ -82,7 +107,7 @@ jobs:
         continue-on-error: true
         uses: actions/download-artifact@v4
         with:
-          name: ultimate_${{ steps.j.outputs.level }}_${{ steps.j.outputs.range }}
+          name: ${{ inputs.variant }}_${{ steps.j.outputs.level }}_${{ steps.j.outputs.range }}
           path: puzzles/_parts
           run-id: ${{ steps.j.outputs.resume }}
           github-token: ${{ github.token }}
@@ -95,11 +120,12 @@ jobs:
       - name: Build part
         timeout-minutes: 330
         run: |
-          ./godot --headless --path . -s tools/build_ultimate.gd -- part ${{ steps.j.outputs.level }} \
-            ${{ steps.j.outputs.first }} ${{ steps.j.outputs.last }} ${{ inputs.per_type }} 2 ${{ inputs.first_round }} || true
+          ./godot --headless --path . -s tools/build_ultimate.gd -- ${{ inputs.variant }} part ${{ steps.j.outputs.level }} \
+            ${{ steps.j.outputs.first }} ${{ steps.j.outputs.last }} ${{ inputs.per_type }} 2 ${{ inputs.first_round }} 2>&1 | tee build.log
+          grep -q "^DONE " build.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: ultimate_${{ steps.j.outputs.level }}_${{ steps.j.outputs.range }}
-          path: puzzles/_parts/*.json
+          name: ${{ inputs.variant }}_${{ steps.j.outputs.level }}_${{ steps.j.outputs.range }}
+          path: puzzles/_parts/${{ inputs.variant }}_*.json
           if-no-files-found: warn

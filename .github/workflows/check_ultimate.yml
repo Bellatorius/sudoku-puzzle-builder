@@ -1,5 +1,6 @@
 name: Check Ultimate builds
-# Every 30 minutes: when the latest Ultimate build (and its top-ups) has finished, start a top-up run for every job
+# Every 30 minutes, for each Ultimate pack (ultimate, ultimate_6, ultimate_3, ultimate_2): when its latest build (and its
+# top-ups) has finished, start a top-up run for every job
 # that failed or came up short (tools/check_ultimate.py; at most 3 top-ups). The run summary shows the counts.
 on:
   schedule:

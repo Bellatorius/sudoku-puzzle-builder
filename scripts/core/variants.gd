@@ -273,9 +273,18 @@ const LIST := [
 	{"id": "ultimate", "name": "Ultimate Sudoku", "short": "Nine rules in one puzzle. Each of the 100 types mixes its own nine.",
 		"rules": "Normal Sudoku rules apply, plus the nine rules of the puzzle's type: a shape rule, two kinds of line, dots, signs, outside clues, cell marks and two global rules. The rules card lists them.",
 		"tip": "Start with the rule that pins digits hardest (sums, thermometers, dots), then let the global rules spread what you found."},
+	{"id": "ultimate_6", "name": "Ultimate 6", "short": "Six rules in one puzzle. Each of the 100 types mixes its own six.",
+		"rules": "Normal Sudoku rules apply, plus the six rules of the puzzle's type: a shape rule, a kind of line, dots or signs, outside clues, cell marks and a global rule. The rules card lists them.",
+		"tip": "Start with the rule that pins digits hardest (sums, thermometers, dots), then let the global rule spread what you found."},
+	{"id": "ultimate_3", "name": "Ultimate 3", "short": "Three rules in one puzzle. Each of the 100 types mixes its own three.",
+		"rules": "Normal Sudoku rules apply, plus the three rules of the puzzle's type, each of a different kind (shapes, lines, dots or signs, outside clues, cell marks, global rules). The rules card lists them.",
+		"tip": "Read all three rules first, then look for a spot where two of them meet: that is where digits get pinned."},
+	{"id": "ultimate_2", "name": "Ultimate 2", "short": "Two rules in one puzzle. A gentle start to Ultimate.",
+		"rules": "Normal Sudoku rules apply, plus the two rules of the puzzle's type, each of a different kind (shapes, lines, dots or signs, outside clues, cell marks, global rules). The rules card lists them.",
+		"tip": "A good first step into Ultimate: learn how two rules work together before trying three, six or nine."},
 ]
 ## Variants playable outside CORE (not in the daily rotation, multiplayer, pack builds or "all variants" counts).
-const EXTRA := ["ultimate"]
+const EXTRA := ["ultimate", "ultimate_6", "ultimate_3", "ultimate_2"]
 
 
 static func get_info(id: String) -> Dictionary:
@@ -339,17 +348,22 @@ static func standard() -> Array:
 	return CORE.filter(func(v): return not v.begins_with("mini_"))
 
 
+## Every playable variant can be raced 1v1 (the user's rule: each new variant goes into multiplayer too).
+static func multiplayer() -> Array:
+	return CORE + EXTRA
+
+
 static func is_playable(id: String) -> bool:
 	return id in CORE or id in EXTRA
 
 
 static func display_name(id: String) -> String:
-	return get_info(id).get("name", id.capitalize())
+	return Lang.t(get_info(id).get("name", id.capitalize()))
 
 
 ## Home-page groups: [id, name, variant ids] in display order. Every variant is in exactly one group.
 const CATEGORIES := [
-	["ultimate", "Ultimate", ["ultimate"]],
+	["ultimate", "Ultimate", ["ultimate_2", "ultimate_3", "ultimate_6", "ultimate"]],
 	["regions", "Regions", ["classic", "jigsaw", "toroidal", "diagonal", "anti_diagonal", "windoku", "universal", "center_dot", "asterisk", "girandola", "argyle", "magic_square"]],
 	["lines", "Lines", ["thermo", "slow_thermo", "german_whispers", "dutch_whispers", "renban", "palindrome", "between", "lockout", "zipper", "bishop", "reflection", "region_sum", "entropic", "modular", "parity_lines", "nabner", "product_lines", "difference_lines", "ratio_lines"]],
 	["sums", "Sums & Arrows", ["killer", "little_killer", "arrow", "double_arrow", "pill_arrow", "ten_lines", "kenken"]],

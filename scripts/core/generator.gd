@@ -91,6 +91,9 @@ const TARGETS := {
 	"color": {"beginner": 46, "easy": 38, "medium": 30, "hard": 0, "expert": 0, "master": 0},
 	"roman": {"beginner": 46, "easy": 38, "medium": 30, "hard": 0, "expert": 0, "master": 0},
 	"ultimate": {"beginner": 34, "easy": 26, "medium": 18, "hard": 0, "expert": 0, "master": 0},
+	"ultimate_6": {"beginner": 36, "easy": 28, "medium": 20, "hard": 0, "expert": 0, "master": 0},
+	"ultimate_3": {"beginner": 38, "easy": 30, "medium": 22, "hard": 0, "expert": 0, "master": 0},
+	"ultimate_2": {"beginner": 38, "easy": 30, "medium": 24, "hard": 0, "expert": 0, "master": 0},
 }
 const LEVELS := ["beginner", "easy", "medium", "hard", "expert", "master"]
 ## How many lines / cages / dots / outside clues a level gets: beginner like easy, expert and master like medium
@@ -193,16 +196,16 @@ var _nc := 81    # its cell count
 var _budget := 0
 var _wrap := false   # toroidal: neighbours wrap around the edges while building regions
 var _boost := 1.0    # expert: clue counts are multiplied by this
-var _type := 1       # Ultimate: the rule set being built (Ultimate.TYPES)
+var _type := 1       # Ultimate: the rule set being built (Ultimate.types(variant))
 var _rules: Array = []   # Ultimate: an exact rule list to build instead of TYPES[_type] (make_ultimate)
-## Ultimate: build this type (1-100); 0 = the type follows from the seed.
+## Ultimate (any of Ultimate.VARIANTS): build this type (1-100); 0 = the type follows from the seed.
 static var ult_type := 0
 
 
 static func make(variant: String, difficulty: String, seed_value: int) -> Puzzle:
 	var g := Generator.new()
 	g.rng.seed = seed_value
-	g._type = ult_type if ult_type > 0 else 1 + absi(seed_value) % Ultimate.TYPES.size()
+	g._type = ult_type if ult_type > 0 else 1 + absi(seed_value) % Ultimate.types(variant).size()
 	var need := 0.0
 	var rule := variant.trim_prefix("mini_")
 	if (difficulty == "expert" and not EXPERT_GOAL.has(rule)) or difficulty == "master":
@@ -238,9 +241,9 @@ static func make_ultimate(rules: Array, difficulty: String, seed_value: int) -> 
 	g._rules = rules.duplicate()
 	g._type = Ultimate.type_of(rules)
 	for attempt in 30:
-		var pz := g._attempt("ultimate", difficulty)
+		var pz := g._attempt(Ultimate.variant_for(rules.size()), difficulty)
 		if pz:
-			pz.id = "ultimate-%s-%d" % [difficulty.substr(0, 2), seed_value]
+			pz.id = "%s-%s-%d" % [pz.variant, difficulty.substr(0, 2), seed_value]
 			open_clues(pz, NODE_LIMIT, g.rng)
 			return pz
 	return null
@@ -1591,6 +1594,8 @@ const ULT_COUNTS := {"killer": 7, "clone": 2, "parity_regions": 4, "line": 3, "k
 	"sum_product_dots": 8, "couples": 10, "numbered_rooms": 6, "battlefield": 5, "missing_digit": 8, "axia": 5,
 	"friendly": 6, "pulse": 4, "index": 5, "divisibility": 8, "forbidden_digit": 12, "vertex": 5, "slingshot": 4}
 const ULT_TIER := {"beginner": 1.25, "easy": 1.25, "medium": 1.0, "hard": 1.0, "expert": 0.8, "master": 0.8}
+## Fewer rules (Ultimate 6 / 3 / 2) = more clues of each, so the rules still carry the puzzle.
+const ULT_MORE := {9: 1.0, 6: 1.3, 3: 1.8, 2: 2.2}
 
 
 ## Ultimate: a grid that obeys the type's global rules, then one layer of clues per clue rule. Each layer is
@@ -1598,7 +1603,7 @@ const ULT_TIER := {"beginner": 1.25, "easy": 1.25, "medium": 1.0, "hard": 1.0, "
 ## holds one mark, a cell one mark), so all 9 rules stay readable. Then the givens are removed as usual.
 func _attempt_ultimate(pz: Puzzle, difficulty: String) -> Puzzle:
 	pz.type = _type
-	pz.rules = _rules.duplicate() if not _rules.is_empty() else Ultimate.rules_of(_type)
+	pz.rules = _rules.duplicate() if not _rules.is_empty() else Ultimate.rules_of(_type, pz.variant)
 	pz.title = "Type %d" % _type if _type > 0 else ""
 	pz.diagonals = pz.has_rule("diagonal")
 	if pz.has_rule("jigsaw"):
@@ -1611,7 +1616,7 @@ func _attempt_ultimate(pz: Puzzle, difficulty: String) -> Puzzle:
 	if sol.size() != _nc:
 		return null
 	pz.solution = sol
-	var f: float = ULT_TIER.get(difficulty, 1.0)
+	var f: float = ULT_TIER.get(difficulty, 1.0) * float(ULT_MORE.get(pz.rules.size(), 1.0))
 	var occupied := {}   # cell -> the line rule using it
 	for r in pz.rules:
 		if Ultimate.GLOBAL.has(r):
@@ -1620,7 +1625,7 @@ func _attempt_ultimate(pz: Puzzle, difficulty: String) -> Puzzle:
 		if not _ult_layer(pz, r, n, occupied):
 			return null
 	pz.givens = sol.duplicate()
-	_reduce(pz, target("ultimate", difficulty), NODE_LIMIT)
+	_reduce(pz, target(pz.variant, difficulty), NODE_LIMIT)
 	return pz
 
 

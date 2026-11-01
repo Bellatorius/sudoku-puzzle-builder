@@ -46,7 +46,7 @@ extends RefCounted
 ##   outer "md" missing digit (v isn't among the first three cells); cages may have "op" (+ - * /, Mathdoku)
 ##   "areas":   [{"cells": [...], "t": "e"}] Even-Odd Regions;  "word": "BLACKSMITH"-style letters for Wordoku
 ##   "rules":   ["killer", "thermo", "king", …]  Ultimate Sudoku: the puzzle's rule ids (global rules such as
-##              king / windoku are switched on by this list; "type" = its number in Ultimate.TYPES)
+##              king / windoku are switched on by this list; "type" = its number in Ultimate.types(variant))
 ## }
 ## Rules without clues (Non-consecutive, Anti-King, Anti-Knight) come from the variant id alone.
 
@@ -54,14 +54,14 @@ var id := ""
 var variant := "classic":
 	set(v):
 		variant = v
-		rule = v.trim_prefix("mini_")
+		rule = "ultimate" if v.begins_with("ultimate_") else v.trim_prefix("mini_")
 		var n := 6 if v.begins_with("mini_") else 9
 		if n != size:
 			size = n
 			givens.resize(n * n)
 			solution.resize(n * n)
 			regions = standard_regions(n)
-var rule := "classic"   # the variant's rules: the id without "mini_"
+var rule := "classic"   # the variant's rules: the id without "mini_" ("ultimate" for Ultimate 6 / 3 / 2 too)
 var size := 9           # grid size N (cells N*N, digits 1..N)
 var difficulty := "medium"
 var givens := PackedInt32Array()
