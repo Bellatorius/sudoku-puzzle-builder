@@ -1,0 +1,24 @@
+name: Check shape builds
+# Every 30 minutes (tools/check_shapes.py): starts the full build of each GridShapes variant that has none, tops up
+# jobs that failed or came up short (at most 3 top-ups), and FAILS (red run, emailed to the repo owner) when a
+# variant has given up. The run summary shows every variant's counts. Switches itself off when all are finished.
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check, start and top up
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: python3 tools/check_shapes.py

@@ -1,0 +1,129 @@
+name: Build shape packs
+# Builds puzzles for one GridShapes variant (other grid sizes, multi-grid, non-square: see scripts/core/grid_shapes.gd).
+# One job per level and shard; each builds `per` puzzles into puzzles/_parts/shape_<variant>_<level>_s<shard>.json and
+# uploads it as the artifact <variant>_<level>_s<shard>. The game repo downloads them (tools/fetch_builder.py <run ids>).
+# A job stopped by the time limit still uploads what it built (the part is saved after every puzzle).
+# Runs are started by "Check shape builds" (tools/check_shapes.py), which also starts top-ups: `jobs` lists
+# "level:shard:run id"; each job first downloads that run's part and only builds what is missing, with fresh seeds.
+# Fail checks: a smoke job first builds and fully checks one medium puzzle; if it fails, no build job starts.
+# Every puzzle is fully checked (unique solution, solution obeys every rule) before it is kept, and a job that fails
+# 8 tries in a row gives up (marked failed) instead of running for hours.
+run-name: ${{ inputs.variant }} ${{ inputs.tag }} x${{ inputs.per }}
+on:
+  workflow_dispatch:
+    inputs:
+      variant:
+        description: "Which variant"
+        type: choice
+        options: [tiny, giant_12, giant_16, twin, dual, triple, gattai, quad, windmill, flower, samurai, samurai_x,
+          jigsaw_samurai, six_grid, decathlon, circular, hexagonal, triangular, cube]
+      levels:
+        description: 'Levels as a JSON list (ignored when jobs is set)'
+        required: false
+        default: '["beginner", "easy", "medium", "hard", "expert", "master"]'
+      shards:
+        description: "Jobs per level (ignored when jobs is set)"
+        required: false
+        default: "1"
+      jobs:
+        description: 'Exact jobs as a JSON list of "level:shard[:resume run id]" (top-ups)'
+        required: false
+        default: ''
+      per:
+        description: "Puzzles per job"
+        required: true
+        default: "500"
+      first_round:
+        description: "Seed round (top-up N uses N so it never repeats seeds)"
+        required: false
+        default: "0"
+      tag:
+        description: "Label in the run name: full, or topup-N for top-ups"
+        required: false
+        default: "full"
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      jobs: ${{ steps.p.outputs.jobs }}
+    steps:
+      - id: p
+        env:
+          JOBS: ${{ inputs.jobs }}
+          LEVELS: ${{ inputs.levels }}
+          SHARDS: ${{ inputs.shards }}
+        run: |
+          python3 - <<'EOF' >> "$GITHUB_OUTPUT"
+          import json, os
+          jobs = os.environ["JOBS"].strip()
+          if jobs:
+              out = json.loads(jobs)
+          else:
+              out = ["%s:%d" % (l, s) for l in json.loads(os.environ["LEVELS"]) for s in range(1, int(os.environ["SHARDS"]) + 1)]
+          print("jobs=" + json.dumps(out))
+          EOF
+
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Get Godot 4.7.2
+        run: |
+          curl -sL -o godot.zip https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip
+          unzip -q godot.zip && mv Godot_v4.7.2-stable_linux.x86_64 godot && chmod +x godot
+      - name: Import project
+        run: timeout 300 ./godot --headless --path . --import || true
+      - name: Smoke check
+        timeout-minutes: 50
+        run: |
+          ./godot --headless --path . -s tools/build_shapes.gd -- smoke ${{ inputs.variant }} 2>&1 | tee smoke.log
+          grep -q "^SMOKE_OK ${{ inputs.variant }}$" smoke.log
+
+  build:
+    needs: [plan, smoke]
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        job: ${{ fromJSON(needs.plan.outputs.jobs) }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read job
+        id: j
+        run: |
+          IFS=: read LEVEL SHARD RESUME <<< "${{ matrix.job }}"
+          echo "level=$LEVEL" >> "$GITHUB_OUTPUT"; echo "shard=$SHARD" >> "$GITHUB_OUTPUT"; echo "resume=$RESUME" >> "$GITHUB_OUTPUT"
+      - name: Resume from an earlier run
+        if: steps.j.outputs.resume != ''
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.variant }}_${{ steps.j.outputs.level }}_s${{ steps.j.outputs.shard }}
+          path: puzzles/_parts
+          run-id: ${{ steps.j.outputs.resume }}
+          github-token: ${{ github.token }}
+      - name: Get Godot 4.7.2
+        run: |
+          curl -sL -o godot.zip https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip
+          unzip -q godot.zip && mv Godot_v4.7.2-stable_linux.x86_64 godot && chmod +x godot
+      - name: Import project
+        run: timeout 300 ./godot --headless --path . --import || true
+      - name: Build part
+        timeout-minutes: 330
+        run: |
+          ./godot --headless --path . -s tools/build_shapes.gd -- part ${{ inputs.variant }} ${{ steps.j.outputs.level }} \
+            ${{ steps.j.outputs.shard }} ${{ inputs.per }} ${{ inputs.first_round }} 2>&1 | tee build.log
+          grep -q "^DONE " build.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ${{ inputs.variant }}_${{ steps.j.outputs.level }}_s${{ steps.j.outputs.shard }}
+          path: puzzles/_parts/shape_${{ inputs.variant }}_*.json
+          if-no-files-found: warn

@@ -390,6 +390,8 @@ static func grade(pz: Puzzle) -> float:
 ## Given digits for a level: TARGETS, scaled to the cell count for Mini (6x6) variants.
 static func target(variant: String, difficulty: String) -> int:
 	var rule := variant.trim_prefix("mini_")
+	if rule.begins_with("ultimate_") and not TARGETS.has(rule):   # a rule mix (Custom) with 1, 4, 5, 7 or 8 rules
+		rule = _ult_nearest(int(rule.trim_prefix("ultimate_")))
 	var t: int = TARGETS.get(rule, TARGETS.classic)[difficulty]
 	return t if rule == variant else int(round(t * 36.0 / 81.0))
 
@@ -1598,6 +1600,14 @@ const ULT_TIER := {"beginner": 1.25, "easy": 1.25, "medium": 1.0, "hard": 1.0, "
 const ULT_MORE := {9: 1.0, 6: 1.3, 3: 1.8, 2: 2.2}
 
 
+## The Ultimate variant whose rule count is nearest to n (rule mixes of any size borrow its numbers).
+static func _ult_nearest(n: int) -> String:
+	if n <= 2: return "ultimate_2"
+	if n <= 4: return "ultimate_3"
+	if n <= 7: return "ultimate_6"
+	return "ultimate"
+
+
 ## Ultimate: a grid that obeys the type's global rules, then one layer of clues per clue rule. Each layer is
 ## built on a scratch puzzle and merged in without touching earlier clues (lines never share a cell, an edge
 ## holds one mark, a cell one mark), so all 9 rules stay readable. Then the givens are removed as usual.
@@ -1616,7 +1626,7 @@ func _attempt_ultimate(pz: Puzzle, difficulty: String) -> Puzzle:
 	if sol.size() != _nc:
 		return null
 	pz.solution = sol
-	var f: float = ULT_TIER.get(difficulty, 1.0) * float(ULT_MORE.get(pz.rules.size(), 1.0))
+	var f: float = ULT_TIER.get(difficulty, 1.0) * float(ULT_MORE.get(pz.rules.size(), ULT_MORE[int(_ult_nearest(pz.rules.size()).trim_prefix("ultimate_").replace("ultimate", "9"))]))
 	var occupied := {}   # cell -> the line rule using it
 	for r in pz.rules:
 		if Ultimate.GLOBAL.has(r):
