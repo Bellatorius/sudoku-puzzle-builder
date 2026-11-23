@@ -141,6 +141,14 @@ func _part(v: String, lv: String, shard: int, count: int, round: int) -> int:
 	var seen := {}
 	for p in list:
 		seen[p.givens] = true
+	# also skip puzzles already in this variant's merged pack or other parts here (any level), so a top-up never
+	# brings a puzzle that merge would drop as a duplicate (on CI only the job's own part is there)
+	for p in _read_list(OUT + v + ".json"):
+		seen[p.givens] = true
+	for fn in DirAccess.get_files_at(PARTS):
+		if fn.begins_with("shape_%s_" % v) and PARTS + fn != path:
+			for p in _read_list(PARTS + fn):
+				seen[p.givens] = true
 	var fails := 0
 	var dups := 0
 	var k := 0
