@@ -203,6 +203,9 @@ static var ult_type := 0
 
 
 static func make(variant: String, difficulty: String, seed_value: int) -> Puzzle:
+	if Puzzle.SIZES.has(variant) or Puzzle.is_multi(variant):   # grid shapes: their own generator (as their packs)
+		var d := ShapeGen.make(variant, difficulty, seed_value, "gen-%s-%s-%d" % [variant, difficulty, seed_value])
+		return null if d.is_empty() else Puzzle.from_dict(d)
 	var g := Generator.new()
 	g.rng.seed = seed_value
 	g._type = ult_type if ult_type > 0 else 1 + absi(seed_value) % Ultimate.types(variant).size()

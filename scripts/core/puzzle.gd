@@ -54,15 +54,25 @@ var id := ""
 var variant := "classic":
 	set(v):
 		variant = v
-		rule = "ultimate" if v.begins_with("ultimate_") else v.trim_prefix("mini_")
-		var n := 6 if v.begins_with("mini_") else 9
-		if n != size:
+		rule = "ultimate" if v.begins_with("ultimate_") else ("classic" if SIZES.has(v) or is_multi(v) else v.trim_prefix("mini_"))
+		var n := size_of(v)
+		if is_multi(v):
+			size = 9
+			shape_regions = []
+			_set_shape()
+		elif n != size or not shape.is_empty():
+			shape = {}
 			size = n
 			givens.resize(n * n)
 			solution.resize(n * n)
 			regions = standard_regions(n)
-var rule := "classic"   # the variant's rules: the id without "mini_" ("ultimate" for Ultimate 6 / 3 / 2 too)
-var size := 9           # grid size N (cells N*N, digits 1..N)
+var rule := "classic"   # the variant's rules: the id without "mini_" ("ultimate" for Ultimate 6 / 3 / 2 too;
+						# "classic" for the other grid sizes: tiny, giant_12, giant_16)
+var size := 9           # grid size N (cells N*N, digits 1..N; multi-grids: digits 1..9, cells = shape.cells)
+## Multi-grid variants (Samurai & co, 2026-11-23): GridShapes.shape(variant, shape_regions) = {cells, units, pos,
+## polys, grids, …}; the cells are numbered in reading order over the whole canvas, not size * size. Empty otherwise.
+var shape: Dictionary = {}
+var shape_regions: Array = []   # jigsaw_samurai: one 81-character region string per 9x9 grid
 var difficulty := "medium"
 var givens := PackedInt32Array()
 var solution := PackedInt32Array()
@@ -97,23 +107,64 @@ func _init() -> void:
 	regions = standard_regions()
 
 
-## Box id per cell: 3x3 boxes on 9x9, 2-row x 3-column boxes on 6x6.
+## Classic Sudoku on other grid sizes (2026-11-23): variant id -> grid size. Their packs are in puzzles/shapes/
+## (built by tools/build_shapes.gd, see GridShapes), the rules are Classic's.
+const SIZES := {"tiny": 4, "giant_12": 12, "giant_16": 16}
+
+
+## Variants made of several overlapping 9x9 grids (GridShapes; Tiny / Giant are SIZES, the non-square shapes
+## aren't playable yet).
+const MULTI := ["twin", "dual", "triple", "gattai", "quad", "windmill", "flower", "samurai", "samurai_x",
+	"jigsaw_samurai", "six_grid", "decathlon"]
+
+
+static func is_multi(v: String) -> bool:
+	return v in MULTI
+
+
+func _set_shape() -> void:
+	shape = GridShapes.shape(variant, shape_regions)
+	var nc: int = shape.cells
+	givens.resize(nc)
+	solution.resize(nc)
+	regions.resize(nc)
+	regions.fill(0)
+
+
+## Grid size of a variant: 6 for Mini, 4 / 12 / 16 for SIZES, else 9.
+static func size_of(v: String) -> int:
+	if v.begins_with("mini_"):
+		return 6
+	return int(SIZES.get(v, 9))
+
+
+## Box id per cell: 3x3 boxes on 9x9, 2-row x 3-column boxes on 6x6, 2x2 on 4x4, 3x4 on 12x12, 4x4 on 16x16.
 static func standard_regions(n := 9) -> PackedInt32Array:
 	var r := PackedInt32Array()
 	r.resize(n * n)
 	var bh := box_h(n)
+	var bw := box_w(n)
 	for i in n * n:
-		r[i] = (i / n / bh) * (n / 3) + (i % n) / 3
+		r[i] = (i / n / bh) * (n / bw) + (i % n) / bw
 	return r
 
 
-## Box height in rows (boxes are always 3 columns wide).
+## Box height in rows.
 static func box_h(n: int) -> int:
-	return 3 if n == 9 else 2
+	match n:
+		9: return 3
+		12: return 3
+		16: return 4
+	return 2
+
+
+## Box width in columns.
+static func box_w(n: int) -> int:
+	return n / box_h(n)
 
 
 func cell_count() -> int:
-	return size * size
+	return int(shape.cells) if not shape.is_empty() else size * size
 
 
 static func edge_key(a: int, b: int) -> String:
@@ -163,19 +214,23 @@ func dead_clues(g: PackedInt32Array) -> Array:
 	return clue_groups().filter(func(cells): return cells.all(func(c): return g[int(c)] != 0))
 
 
+## One character per cell: "0" or "." = empty, "1"-"9", then "A" = 10 … "G" = 16 (Giant grids).
+const DIGIT_CHARS := "0123456789ABCDEFG"
+
+
 static func _str_to_arr(s: String, n := 81) -> PackedInt32Array:
 	var a := PackedInt32Array()
 	a.resize(n)
 	for i in mini(n, s.length()):
 		var ch := s[i]
-		a[i] = 0 if (ch == "." or ch == "0") else int(ch)
+		a[i] = 0 if ch == "." else maxi(0, DIGIT_CHARS.find(ch.to_upper()))
 	return a
 
 
 static func _arr_to_str(a: PackedInt32Array) -> String:
 	var s := ""
 	for v in a:
-		s += str(v)
+		s += DIGIT_CHARS[clampi(v, 0, 16)]
 	return s
 
 
@@ -186,6 +241,8 @@ func to_dict() -> Dictionary:
 	}
 	if has_rule("jigsaw") or rule == "toroidal":
 		d.regions = _arr_to_str(regions)
+	if not shape_regions.is_empty():
+		d.regions = shape_regions
 	if diagonals:
 		d.diagonals = true
 	if not cages.is_empty():
@@ -228,10 +285,14 @@ static func from_dict(d: Dictionary) -> Puzzle:
 	p.id = str(d.get("id", ""))
 	p.variant = str(d.get("variant", "classic"))
 	p.difficulty = str(d.get("difficulty", "medium"))
+	if not p.shape.is_empty() and d.get("regions", null) is Array:   # jigsaw_samurai: regions per grid
+		for r in d.regions:
+			p.shape_regions.append(str(r))
+		p._set_shape()
 	var nc := p.cell_count()
 	p.givens = _str_to_arr(str(d.get("givens", "")), nc)
 	p.solution = _str_to_arr(str(d.get("solution", "")), nc)
-	if d.has("regions"):
+	if d.has("regions") and p.shape.is_empty():
 		p.regions = _str_to_arr(str(d.regions), nc)
 	p.diagonals = bool(d.get("diagonals", p.rule == "diagonal"))
 	for c in d.get("cages", []):

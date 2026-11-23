@@ -14,6 +14,8 @@ const CORE := ["classic", "killer", "thermo", "arrow", "jigsaw", "diagonal", "kr
 	"argyle", "queen", "miracle", "magic_square", "toroidal",
 	"ratio_dots", "difference_dots", "product_lines", "difference_lines", "ratio_lines", "prime_composite", "parity_regions", "missing_digit",
 	"forbidden_digit", "divisibility", "kenken", "alphabet", "wordoku", "symbol", "color", "roman",
+	"tiny", "giant_12", "giant_16",
+	"twin", "dual", "triple", "gattai", "quad", "windmill", "flower", "samurai", "samurai_x", "jigsaw_samurai", "six_grid", "decathlon",
 	"mini_classic", "mini_killer", "mini_thermo", "mini_arrow", "mini_jigsaw", "mini_diagonal", "mini_kropki", "mini_xv", "mini_even_odd", "mini_renban", "mini_sandwich", "mini_skyscraper", "mini_xsum", "mini_little_killer", "mini_palindrome", "mini_between", "mini_consecutive", "mini_greater_than", "mini_non_consecutive", "mini_king", "mini_knight", "mini_region_sum", "mini_entropic", "mini_parity_lines", "mini_zipper", "mini_slow_thermo", "mini_kenken", "mini_difference_dots", "mini_ratio_dots", "mini_sum_product_dots"]
 
 ## Mini (6x6) versions: "mini_<rule>" plays <rule> on a 6x6 grid with 2x3 boxes and digits 1-6.
@@ -219,6 +221,51 @@ const LIST := [
 	{"id": "magic_square", "name": "Magic Square", "short": "In the centre box, every row, column and diagonal sums to 15.",
 		"rules": "Normal Sudoku rules apply. The centre 3x3 box is a magic square: each of its rows, columns and both diagonals sum to 15.",
 		"tip": "The centre of a magic square is always 5 and its corners are always even."},
+	{"id": "tiny", "name": "Tiny 4×4", "short": "A 4×4 grid: each row, column and 2×2 box holds 1 to 4 once.",
+		"rules": "Fill the 4×4 grid so that every row, every column and every 2×2 box contains the digits 1 to 4 exactly once.",
+		"tip": "With only four digits, a row with three digits placed gives the last one away. Look at the boxes too."},
+	{"id": "giant_12", "name": "Giant 12×12", "short": "A 12×12 grid: each row, column and 3×4 box holds 1 to 12 once.",
+		"rules": "Fill the 12×12 grid so that every row, every column and every box of 3 rows by 4 columns contains the numbers 1 to 12 exactly once. On the keyboard, type 10, 11 and 12 as two digits (1 then 0, 1 or 2).",
+		"tip": "Work one number at a time: with twelve boxes, a number already placed in most of them leaves only a few spots."},
+	{"id": "giant_16", "name": "Giant 16×16", "short": "A 16×16 grid: each row, column and 4×4 box holds 1 to 16 once.",
+		"rules": "Fill the 16×16 grid so that every row, every column and every 4×4 box contains the numbers 1 to 16 exactly once. On the keyboard, type 10 to 16 as two digits (1 then 0 to 6).",
+		"tip": "A long puzzle: use corner marks for numbers with only two spots in a box, and come back to them as the grid fills."},
+	{"id": "twin", "name": "Twin", "short": "Two 9×9 grids that share a corner box.",
+		"rules": "Two classic 9×9 grids overlap in one corner box. Every row, column and 3×3 box of every grid contains the digits 1 to 9 exactly once. A cell where grids overlap belongs to each of them, so its digit must fit every grid it is in.",
+		"tip": "Start in the shared box: each grid sees it, so digits from both grids pin it down."},
+	{"id": "dual", "name": "Dual", "short": "Two 9×9 grids that share two boxes.",
+		"rules": "Two classic 9×9 grids overlap in two boxes, side by side. Every row, column and 3×3 box of every grid contains the digits 1 to 9 exactly once. A cell where grids overlap belongs to each of them, so its digit must fit every grid it is in.",
+		"tip": "The two shared boxes link the grids' rows: a digit pinned in one grid often settles the other."},
+	{"id": "triple", "name": "Triple", "short": "Three 9×9 grids in a chain, each sharing a corner box.",
+		"rules": "Three classic 9×9 grids run in a diagonal chain; neighbours share a corner box. Every row, column and 3×3 box of every grid contains the digits 1 to 9 exactly once. A cell where grids overlap belongs to each of them, so its digit must fit every grid it is in.",
+		"tip": "The middle grid touches both others: solve outward from it."},
+	{"id": "gattai", "name": "Gattai-3", "short": "Three 9×9 grids in a V, sharing corner boxes.",
+		"rules": "Three classic 9×9 grids form a V: the middle grid shares a corner box with each of the other two. Every row, column and 3×3 box of every grid contains the digits 1 to 9 exactly once. A cell where grids overlap belongs to each of them, so its digit must fit every grid it is in.",
+		"tip": "The shared corners carry digits between the grids; look there when one grid stalls."},
+	{"id": "quad", "name": "Quad", "short": "Four 9×9 grids in a ring, each sharing a corner box with two others.",
+		"rules": "Four classic 9×9 grids form a ring; each shares a corner box with the two grids beside it. Every row, column and 3×3 box of every grid contains the digits 1 to 9 exactly once. A cell where grids overlap belongs to each of them, so its digit must fit every grid it is in.",
+		"tip": "Each grid has two shared boxes: fill those first and the ring opens up."},
+	{"id": "windmill", "name": "Windmill", "short": "Four 9×9 grids turning round a fifth, each sharing two boxes with it.",
+		"rules": "Five classic 9×9 grids: four grids turn round a centre grid like windmill sails, each sharing two boxes with it. Every row, column and 3×3 box of every grid contains the digits 1 to 9 exactly once. A cell where grids overlap belongs to each of them, so its digit must fit every grid it is in.",
+		"tip": "The centre grid shares eight boxes: most of it gets filled from the sails."},
+	{"id": "flower", "name": "Flower", "short": "Four 9×9 grids round a centre grid, each shifted three cells.",
+		"rules": "Five classic 9×9 grids: four petals, each shifted three cells up, down, left or right from the centre grid, overlap it by six boxes. Every row, column and 3×3 box of every grid contains the digits 1 to 9 exactly once. A cell where grids overlap belongs to each of them, so its digit must fit every grid it is in.",
+		"tip": "With so much overlap, a digit in the centre grid is placed in two or three grids at once."},
+	{"id": "samurai", "name": "Samurai", "short": "Five 9×9 grids: four corners round a centre grid.",
+		"rules": "Five classic 9×9 grids: one in the middle, and one at each corner sharing a corner box with it. Every row, column and 3×3 box of every grid contains the digits 1 to 9 exactly once. A cell where grids overlap belongs to each of them, so its digit must fit every grid it is in.",
+		"tip": "Work grid by grid and come back to the middle: the four shared boxes pass digits between them."},
+	{"id": "samurai_x", "name": "Samurai X", "short": "Samurai with both diagonals in every grid.",
+		"rules": "Five classic 9×9 grids as in Samurai, and in every grid both main diagonals also contain 1 to 9 exactly once. Every row, column and 3×3 box of every grid contains the digits 1 to 9 exactly once. A cell where grids overlap belongs to each of them, so its digit must fit every grid it is in.",
+		"tip": "The diagonals cross the shared boxes too: a diagonal of a corner grid runs into the centre grid."},
+	{"id": "jigsaw_samurai", "name": "Jigsaw Samurai", "short": "Samurai with jigsaw regions in place of 3×3 boxes.",
+		"rules": "Five 9×9 grids as in Samurai, but each grid has irregular regions instead of 3×3 boxes. The four shared corner boxes stay square. Every row, column and region of every grid contains 1 to 9 exactly once. A cell where grids overlap belongs to each of them.",
+		"tip": "Use the 'law of leftovers' in each grid, and the square shared boxes as anchors."},
+	{"id": "six_grid", "name": "Six-Grid", "short": "Six 9×9 grids in a zigzag, neighbours sharing a corner box.",
+		"rules": "Six classic 9×9 grids in a zigzag; each shares a corner box with the grids next to it. Every row, column and 3×3 box of every grid contains the digits 1 to 9 exactly once. A cell where grids overlap belongs to each of them, so its digit must fit every grid it is in.",
+		"tip": "A long chain: finish the grids at the ends, then move along it."},
+	{"id": "decathlon", "name": "Decathlon", "short": "Ten 9×9 grids in a pyramid.",
+		"rules": "Ten classic 9×9 grids stacked in a pyramid of 4, 3, 2 and 1; touching grids share corner boxes. Every row, column and 3×3 box of every grid contains the digits 1 to 9 exactly once. A cell where grids overlap belongs to each of them, so its digit must fit every grid it is in.",
+		"tip": "A marathon: grids that share three or four boxes fill fastest, start there."},
 	{"id": "toroidal", "name": "Toroidal", "short": "Irregular regions wrap around the edges of the grid.",
 		"rules": "Normal Sudoku rules apply. Each row, column and irregular region contains 1 to 9 once. Regions can wrap around the edges: leave the grid on one side and come back on the opposite side.",
 		"tip": "Check the edges: a region can continue on the far side of the grid."},
@@ -343,14 +390,19 @@ static func all_list() -> Array:
 	return out
 
 
-## The 9x9 variants (the daily puzzle rotates through these).
+## The 9x9 variants (the daily puzzle rotates through these; not Mini, Tiny or Giant).
 static func standard() -> Array:
-	return CORE.filter(func(v): return not v.begins_with("mini_"))
+	return CORE.filter(func(v): return not v.begins_with("mini_") and not Puzzle.SIZES.has(v) and not Puzzle.is_multi(v))
 
 
 ## Every playable variant can be raced 1v1 (the user's rule: each new variant goes into multiplayer too).
 static func multiplayer() -> Array:
 	return CORE + EXTRA
+
+
+## Switch mode (shuffled tiles) works with digits up to 9: every variant but the Giant grids.
+static func switch_ok(id: String) -> bool:
+	return Puzzle.size_of(id) <= 9
 
 
 static func is_playable(id: String) -> bool:
@@ -364,7 +416,7 @@ static func display_name(id: String) -> String:
 ## Home-page groups: [id, name, variant ids] in display order. Every variant is in exactly one group.
 const CATEGORIES := [
 	["ultimate", "Ultimate", ["ultimate_2", "ultimate_3", "ultimate_6", "ultimate"]],
-	["regions", "Regions", ["classic", "jigsaw", "toroidal", "diagonal", "anti_diagonal", "windoku", "universal", "center_dot", "asterisk", "girandola", "argyle", "magic_square"]],
+	["regions", "Regions", ["classic", "giant_12", "giant_16", "jigsaw", "toroidal", "diagonal", "anti_diagonal", "windoku", "universal", "center_dot", "asterisk", "girandola", "argyle", "magic_square"]],
 	["lines", "Lines", ["thermo", "slow_thermo", "german_whispers", "dutch_whispers", "renban", "palindrome", "between", "lockout", "zipper", "bishop", "reflection", "region_sum", "entropic", "modular", "parity_lines", "nabner", "product_lines", "difference_lines", "ratio_lines"]],
 	["sums", "Sums & Arrows", ["killer", "little_killer", "arrow", "double_arrow", "pill_arrow", "ten_lines", "kenken"]],
 	["outside", "Outside Clues", ["sandwich", "skyscraper", "xsum", "ascending", "running", "frame", "numbered_rooms", "rossini", "battlefield", "missing_digit"]],
@@ -372,7 +424,8 @@ const CATEGORIES := [
 	["marks", "Cell Marks", ["even_odd", "axia", "friendly", "pulse", "index", "fortress", "min_max", "clone", "vertex", "slingshot", "prime_composite", "parity_regions", "forbidden_digit", "divisibility"]],
 	["themes", "Letters & Symbols", ["alphabet", "wordoku", "symbol", "color", "roman"]],
 	["global", "Chess & Global Rules", ["king", "knight", "queen", "miracle", "non_consecutive", "dutch_flatmates"]],
-	["mini", "Mini 6×6", ["mini_classic", "mini_killer", "mini_thermo", "mini_arrow", "mini_jigsaw", "mini_diagonal", "mini_kropki", "mini_xv", "mini_even_odd", "mini_renban", "mini_sandwich", "mini_skyscraper", "mini_xsum", "mini_little_killer", "mini_palindrome", "mini_between", "mini_consecutive", "mini_greater_than", "mini_non_consecutive", "mini_king", "mini_knight", "mini_region_sum", "mini_entropic", "mini_parity_lines", "mini_zipper", "mini_slow_thermo", "mini_kenken", "mini_difference_dots", "mini_ratio_dots", "mini_sum_product_dots"]],
+	["multi", "Multi-grid", ["twin", "dual", "triple", "gattai", "quad", "windmill", "flower", "samurai", "samurai_x", "jigsaw_samurai", "six_grid", "decathlon"]],
+	["mini", "Mini 6×6", ["tiny", "mini_classic", "mini_killer", "mini_thermo", "mini_arrow", "mini_jigsaw", "mini_diagonal", "mini_kropki", "mini_xv", "mini_even_odd", "mini_renban", "mini_sandwich", "mini_skyscraper", "mini_xsum", "mini_little_killer", "mini_palindrome", "mini_between", "mini_consecutive", "mini_greater_than", "mini_non_consecutive", "mini_king", "mini_knight", "mini_region_sum", "mini_entropic", "mini_parity_lines", "mini_zipper", "mini_slow_thermo", "mini_kenken", "mini_difference_dots", "mini_ratio_dots", "mini_sum_product_dots"]],
 ]
 
 

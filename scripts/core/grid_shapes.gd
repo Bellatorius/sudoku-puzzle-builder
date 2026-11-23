@@ -197,7 +197,7 @@ static func _jigsaw(locked: PackedInt32Array, rng: RandomNumberGenerator) -> Str
 		reg.append((i / 27) * 3 + (i % 9) / 3)
 	var swaps := 0
 	var tries := 0
-	while swaps < 120 and tries < 20000:
+	while swaps < 60 and tries < 20000:
 		tries += 1
 		var a := rng.randi() % 81
 		if locked[a]:
@@ -211,10 +211,23 @@ static func _jigsaw(locked: PackedInt32Array, rng: RandomNumberGenerator) -> Str
 				nb.append(b)
 		if nb.is_empty():
 			continue
-		var b2: int = nb[rng.randi() % nb.size()]
-		# swap a cell of region A next to region B with a cell of B (a and b2 trade regions)
+		# a moves into the neighbouring region rb, and a cell of rb that touches ra (somewhere else) moves into ra, so
+		# both keep 9 cells. (A swap of two touching cells across a straight border always cut a region in two, so
+		# the first version never changed anything: 2026-11-23.)
 		var ra := reg[a]
-		var rb := reg[b2]
+		var rb := reg[nb[rng.randi() % nb.size()]]
+		var give: Array = []
+		for c in 81:
+			if reg[c] != rb or locked[c] or c == a:
+				continue
+			for d2 in [-9, 9, -1, 1]:
+				var e: int = c + d2
+				if e >= 0 and e < 81 and not (abs(d2) == 1 and e / 9 != c / 9) and reg[e] == ra and e != a:
+					give.append(c)
+					break
+		if give.is_empty():
+			continue
+		var b2: int = give[rng.randi() % give.size()]
 		reg[a] = rb
 		reg[b2] = ra
 		if _connected(reg, ra) and _connected(reg, rb):

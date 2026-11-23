@@ -25,7 +25,7 @@ LEVELS = ["beginner", "easy", "medium", "hard", "expert", "master"]
 # jobs per level (each builds PACK / shards puzzles); more for the slow ones so no job nears the 6 h limit
 SHARDS = {
     "tiny": 1, "giant_12": 1, "giant_16": 5, "twin": 1, "dual": 1, "triple": 1, "gattai": 1, "quad": 2,
-    "windmill": 2, "flower": 1, "samurai": 2, "samurai_x": 2, "jigsaw_samurai": 5, "six_grid": 4,
+    "windmill": 2, "flower": 1, "samurai": 2, "samurai_x": 2, "jigsaw_samurai": 10, "six_grid": 4,
     "decathlon": 20, "circular": 1, "hexagonal": 1, "triangular": 1, "cube": 1,
 }
 VARIANTS = list(SHARDS)

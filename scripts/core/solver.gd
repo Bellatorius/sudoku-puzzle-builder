@@ -22,6 +22,7 @@ var NC := 81          # cells
 var all_mask := ALL   # bits 1..N
 var grid := PackedInt32Array()
 var units: Array[PackedInt32Array] = []
+var peer_units := 27   # units before this index are rows / columns / boxes (+ diagonals): the board lights them
 var cell_units: Array[PackedInt32Array] = []
 var unit_used := PackedInt32Array()
 
@@ -56,6 +57,7 @@ const ARGYLE := [[1, 10, 8], [9, 10, 8], [7, 8, 8], [17, 8, 8], [4, 10, 5], [36,
 var twist_gen := false
 
 var _popc := PackedInt32Array()
+static var _popc_shared := PackedInt32Array()   # bit counts, built once for the biggest grid seen
 var _count := 0
 var _limit := 2
 var _nodes := 0
@@ -68,16 +70,19 @@ var _found := PackedInt32Array()
 func _init(puzzle: Puzzle) -> void:
 	p = puzzle
 	N = p.size
-	NC = N * N
+	NC = p.cell_count()
 	all_mask = ((1 << (N + 1)) - 1) & ~1
-	_popc.resize(1024)
-	for i in 1024:
-		var n := 0
-		var x := i
-		while x:
-			n += x & 1
-			x >>= 1
-		_popc[i] = n
+	var bits := 1 << (N + 1)   # masks use bits 1..N (Giant 16x16: 17 bits)
+	if _popc_shared.size() < bits:
+		_popc_shared.resize(bits)
+		for i in bits:
+			var n := 0
+			var x := i
+			while x:
+				n += x & 1
+				x >>= 1
+			_popc_shared[i] = n
+	_popc = _popc_shared
 	_build()
 
 
@@ -93,6 +98,13 @@ func _build() -> void:
 	cell_units.resize(NC)
 	for i in NC:
 		cell_units[i] = PackedInt32Array()
+	if not p.shape.is_empty():   # multi-grid: every row, column, box (and Samurai X diagonal) of every grid
+		for u in p.shape.units:
+			_add_unit(PackedInt32Array(u))
+		peer_units = units.size()
+		_build_rest()
+		return
+	peer_units = 3 * N + (2 if p.diagonals else 0)
 	for r in N:
 		var row := PackedInt32Array()
 		var col := PackedInt32Array()
@@ -117,7 +129,10 @@ func _build() -> void:
 			d2.append(k * N + (N - 1 - k))
 		_add_unit(d1)
 		_add_unit(d2)
+	_build_rest()
 
+
+func _build_rest() -> void:
 	cell_cage.resize(NC)
 	cell_cage.fill(-1)
 	has_extra.resize(NC)
@@ -1192,7 +1207,7 @@ func _search() -> void:
 		return
 	var best := -1
 	var best_m := 0
-	var best_n := 10
+	var best_n := N + 1
 	for c in NC:
 		if grid[c] != 0: continue
 		var m := candidates(c)
